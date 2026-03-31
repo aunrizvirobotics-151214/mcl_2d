@@ -7,3 +7,10 @@ The system integrates:
 - Resampling strategies for particle filtering
 
 The implementation is tested in Gazebo using the ArticubotOne robot.
+
+
+## Simulation Setup
+All algorithms are implemented and tested using:
+- ROS2 (Humble)
+- Gazebo
+- ArticubotOne robot (based on John Evan’s tutorial)

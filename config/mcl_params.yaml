@@ -1,0 +1,29 @@
+mcl_node:
+  ros__parameters:
+
+    # ── Particle filter ───────────────────────────────────────────────────────
+    num_particles: 3000          # raise to 5000 if cloud doesn't converge
+    resample_interval: 1         # resample every N scan callbacks
+
+    # ── Odometry noise model (Thrun Table 5.6) ────────────────────────────────
+    # alpha1: rotation noise from rotation
+    # alpha2: rotation noise from translation
+    # alpha3: translation noise from translation
+    # alpha4: translation noise from rotation
+    # For Gazebo differential-drive these defaults work well.
+    # Raise all four if particles spread too slowly after a turn.
+    alpha1: 0.1
+    alpha2: 0.1
+    alpha3: 0.1
+    alpha4: 0.1
+
+    # ── Observation model ─────────────────────────────────────────────────────
+    likelihood_sigma: 0.5        # Gaussian std of likelihood field (metres)
+                                 # raise to 1.0 if scan/map don't align well
+    max_laser_range: 10.0        # beams longer than this are ignored (metres)
+    p_outside: 0.05              # per-beam penalty for leaving the map boundary
+
+    # ── Frame IDs — matched to your robot ────────────────────────────────────
+    map_frame:  map
+    odom_frame: odom
+    base_frame: base_link

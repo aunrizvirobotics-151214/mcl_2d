@@ -11,9 +11,6 @@ Publishes:
   /mcl/particles (geometry_msgs/PoseArray) — full particle cloud
   /mcl/pose      (geometry_msgs/PoseStamped) — weighted mean estimate
   /mcl/likelihood_map (nav_msgs/OccupancyGrid) — likelihood field for debug
-
-All MCL maths are direct ports of ex6.py — same variable names, same
-coordinate conventions, same algorithms.  No dependency on ex6.py itself.
 """
 
 import rclpy
@@ -32,9 +29,6 @@ import tf2_ros                          # sudo apt install ros-humble-tf2-ros
 import tf_transformations               # sudo apt install ros-humble-tf-transformations
 
 
-# ─────────────────────────────────────────────
-#  Pure maths — ported 1-to-1 from ex6.py
-# ─────────────────────────────────────────────
 
 def wrap_to_pi(theta):
     return (theta + np.pi) % (2 * np.pi) - np.pi
@@ -129,10 +123,6 @@ def ranges2cells_parallel(r_ranges, r_angles, w_poses, gridmap, map_res, map_ori
     return m_xy.reshape(P, B, 2).transpose(0, 2, 1)                 # (P, 2, B)
 
 
-# ─────────────────────────────────────────────
-#  Motion model  (Table 5.6, Thrun et al.)
-# ─────────────────────────────────────────────
-
 def sample_motion_model(pose, u_t, alpha):
     """Propagate a single particle through the noisy odometry model."""
     rot1, trans, rot2 = u_t
@@ -159,10 +149,6 @@ def sample_motion_model_parallel(poses, u_t, alpha):
     th_t = wrap_to_pi(poses[:, 2] + rot1_hat + rot2_hat)
     return np.stack([x_t, y_t, th_t], axis=1)
 
-
-# ─────────────────────────────────────────────
-#  Observation / weight model
-# ─────────────────────────────────────────────
 
 def compute_weights_parallel(poses, z_ranges, z_angles,
                               gridmap, likelihood_map,
@@ -199,9 +185,6 @@ def compute_weights_parallel(poses, z_ranges, z_angles,
     return weights / w_sum
 
 
-# ─────────────────────────────────────────────
-#  Low-variance resampler
-# ─────────────────────────────────────────────
 
 def low_variance_resample(particles, weights):
     """Returns new (P, 3) particle array sampled proportional to weights."""
@@ -212,10 +195,6 @@ def low_variance_resample(particles, weights):
     idx    = np.clip(np.searchsorted(cumsum, pos), 0, N - 1)
     return particles[idx]
 
-
-# ─────────────────────────────────────────────
-#  Likelihood field builder
-# ─────────────────────────────────────────────
 
 def build_likelihood_map(occupancy_grid, sigma=0.5, map_res=0.05):
     """
@@ -231,9 +210,6 @@ def build_likelihood_map(occupancy_grid, sigma=0.5, map_res=0.05):
     return likelihood.astype(np.float32)
 
 
-# ─────────────────────────────────────────────
-#  Helper: quaternion → yaw
-# ─────────────────────────────────────────────
 
 def quat_to_yaw(q):
     return tf_transformations.euler_from_quaternion(
@@ -243,11 +219,6 @@ def quat_to_yaw(q):
 def yaw_to_quat(yaw):
     q = tf_transformations.quaternion_from_euler(0.0, 0.0, yaw)
     return Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
-
-
-# ─────────────────────────────────────────────
-#  ROS 2 Node
-# ─────────────────────────────────────────────
 
 class MCLNode(Node):
 
@@ -342,10 +313,6 @@ class MCLNode(Node):
 
         self.get_logger().info('MCL node started — waiting for /map …')
 
-    # ────────────────────────────────────────────────────────────
-    #  Map callback  — runs once (or when map updates)
-    # ────────────────────────────────────────────────────────────
-
     def map_callback(self, msg: OccupancyGrid):
         info = msg.info
         H, W = info.height, info.width
@@ -401,10 +368,6 @@ class MCLNode(Node):
         self.particles = np.stack([x, y, th], axis=1)   # (P, 3)
         self.weights   = np.ones(self.num_particles) / self.num_particles
 
-    # ────────────────────────────────────────────────────────────
-    #  Odometry callback  — stores previous pose for delta
-    # ────────────────────────────────────────────────────────────
-
     def odom_callback(self, msg: Odometry):
         pos = msg.pose.pose.position
         yaw = quat_to_yaw(msg.pose.pose.orientation)
@@ -422,10 +385,6 @@ class MCLNode(Node):
             return
 
         self.prev_odom_pose = np.array([pos.x, pos.y, yaw])
-
-    # ────────────────────────────────────────────────────────────
-    #  Scan callback  — main MCL update
-    # ────────────────────────────────────────────────────────────
 
     def scan_callback(self, msg: LaserScan):
         if self.particles is None or self.prev_odom_pose is None:
@@ -486,10 +445,6 @@ class MCLNode(Node):
         # ── Publish ──────────────────────────────────────────────
         self._publish(msg.header.stamp)
 
-    # ────────────────────────────────────────────────────────────
-    #  Odometry → u_t = [rot1, trans, rot2]
-    # ────────────────────────────────────────────────────────────
-
     def _odom_to_ut(self):
         """
         Compute odometry motion parameters [rot1, trans, rot2] from
@@ -515,10 +470,6 @@ class MCLNode(Node):
 
         self._last_used_odom = cur.copy()
         return np.array([rot1, trans, rot2])
-
-    # ────────────────────────────────────────────────────────────
-    #  Publishers
-    # ────────────────────────────────────────────────────────────
 
     def _publish(self, stamp):
         self._publish_particles(stamp)
@@ -637,10 +588,6 @@ class MCLNode(Node):
         msg.data = scaled.flatten().tolist()
         self.pub_likelihood.publish(msg)
 
-
-# ─────────────────────────────────────────────
-#  Entry point
-# ─────────────────────────────────────────────
 
 def main(args=None):
     rclpy.init(args=args)
